@@ -3,6 +3,7 @@ package main
 import (
 	_ "github.com/lib/pq"
 	"github.com/mizuki1412/go-core-kit/v2/cli"
+	_ "github.com/mizuki1412/kingbase-go-driver"
 	"github.com/spf13/cobra"
 	"mizuki/project/mysql-proxy-server/test"
 )
