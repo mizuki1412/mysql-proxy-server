@@ -3,8 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"kingbase.com/gokb"
-	_ "kingbase.com/gokb"
+	"github.com/mizuki1412/kingbase-go-driver"
+	_ "github.com/mizuki1412/kingbase-go-driver"
 )
 
 const (

@@ -7,11 +7,15 @@ require (
 	github.com/dolthub/vitess v0.0.0-20250512224608-8fb9c6ea092c
 	github.com/lib/pq v1.10.9
 	github.com/mizuki1412/go-core-kit/v2 v2.1.3
+	github.com/mizuki1412/kingbase-go-driver v1.0.0
 	github.com/spf13/cobra v1.8.1
 )
 
 require (
+	github.com/bytedance/sonic v1.12.9 // indirect
+	github.com/bytedance/sonic/loader v0.2.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/dolthub/flatbuffers/v23 v23.3.3-dh.2 // indirect
 	github.com/dolthub/go-icu-regex v0.0.0-20250327004329-6799764f2dad // indirect
 	github.com/dolthub/jsonpath v0.0.2-0.20240227200619-19675ab05c71 // indirect
@@ -23,10 +27,10 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/lestrrat-go/strftime v1.0.4 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/mizuki1412/kingbase-go-driver v1.0.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -41,10 +45,12 @@ require (
 	github.com/spf13/viper v1.19.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tetratelabs/wazero v1.8.2 // indirect
+	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	go.opentelemetry.io/otel v1.31.0 // indirect
 	go.opentelemetry.io/otel/trace v1.31.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
+	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect

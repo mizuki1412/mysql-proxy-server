@@ -1,62 +1,63 @@
-package test
+package logic
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
-	sqls "github.com/dolthub/go-mysql-server"
-	"github.com/dolthub/go-mysql-server/memory"
-	"github.com/dolthub/go-mysql-server/server"
 	sqle "github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/types"
-	"github.com/dolthub/vitess/go/mysql"
+	"github.com/mizuki1412/go-core-kit/v2/class/exception"
+	"github.com/mizuki1412/go-core-kit/v2/service/logkit"
 	"io"
-	"log"
 	"time"
 )
 
-type Backend struct {
-	db *sql.DB
+type DBProvider struct {
+	Driver string
+	Db     string
+	Schema string
+	db     *sql.DB
 }
 
-func (b Backend) Database(ctx *sqle.Context, name string) (sqle.Database, error) {
-	return &Database{
-		name:    name,
-		backend: &b,
-	}, nil
+func (b DBProvider) Database(ctx *sqle.Context, name string) (sqle.Database, error) {
+	switch b.Driver {
+	case DriverKingbase:
+		fallthrough
+	case DriverPostgres:
+		return &PGDatabase{
+			name:     name,
+			provider: &b,
+		}, nil
+	case DriverMysql:
+		// todo
+		fallthrough
+	default:
+		panic(exception.New("driver error"))
+	}
 }
 
-func (b Backend) HasDatabase(ctx *sqle.Context, name string) bool {
+func (b DBProvider) HasDatabase(ctx *sqle.Context, name string) bool {
 	return true
 }
 
-func (b Backend) AllDatabases(ctx *sqle.Context) []sqle.Database {
-	//TODO implement me
-	db, _ := b.Database(ctx, "myspace")
-	return []sqle.Database{db}
+func (b DBProvider) AllDatabases(ctx *sqle.Context) []sqle.Database {
+	//TODO
+	//db, _ := b.PGDatabase(ctx, "myspace")
+	return []sqle.Database{}
 }
 
-func NewBackend(connStr string) (*Backend, error) {
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-	return &Backend{db: db}, nil
+type PGDatabase struct {
+	name     string
+	provider *DBProvider
 }
 
-type Database struct {
-	name    string
-	backend *Backend
-}
-
-func (d *Database) Name() string { return d.name }
-func (d *Database) Tables() map[string]sqle.Table {
-	// 查询PostgreSQL获取所有表
-	rows, err := d.backend.db.Query(`
+func (d *PGDatabase) Name() string { return d.name }
+func (d *PGDatabase) Tables() map[string]sqle.Table {
+	logkit.Debug("pgdb: Tables()")
+	rows, err := d.provider.db.Query(fmt.Sprintf(`
         SELECT table_name 
         FROM information_schema.tables 
-        WHERE table_schema = 'public'
-    `)
+        WHERE table_schema = '%s'
+    `, d.provider.Schema))
 	if err != nil {
 		return nil
 	}
@@ -73,9 +74,10 @@ func (d *Database) Tables() map[string]sqle.Table {
 			name: name,
 		}
 	}
+
 	return tables
 }
-func (d *Database) GetTableInsensitive(ctx *sqle.Context, tblName string) (sqle.Table, bool, error) {
+func (d *PGDatabase) GetTableInsensitive(ctx *sqle.Context, tblName string) (sqle.Table, bool, error) {
 	// 检查表是否存在
 	exists, err := d.tableExists(tblName)
 	if err != nil {
@@ -91,13 +93,14 @@ func (d *Database) GetTableInsensitive(ctx *sqle.Context, tblName string) (sqle.
 	}, true, nil
 }
 
-func (d *Database) GetTableNames(ctx *sqle.Context) ([]string, error) {
+func (d *PGDatabase) GetTableNames(ctx *sqle.Context) ([]string, error) {
+	logkit.Debug("pgdb: GetTableNames()")
 	// 查询PostgreSQL获取所有表名
-	rows, err := d.backend.db.Query(`
+	rows, err := d.provider.db.Query(fmt.Sprintf(`
         SELECT table_name 
         FROM information_schema.tables 
-        WHERE table_schema = 'public'
-    `)
+        WHERE table_schema = '%s'
+    `, d.provider.Schema))
 	if err != nil {
 		return nil, err
 	}
@@ -114,20 +117,22 @@ func (d *Database) GetTableNames(ctx *sqle.Context) ([]string, error) {
 	return tables, nil
 }
 
-func (d *Database) tableExists(name string) (bool, error) {
-	var exists bool
-	err := d.backend.db.QueryRow(`
-        SELECT EXISTS (
-            SELECT 1 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = $1
-        )`, name).Scan(&exists)
-	return exists, err
+func (d *PGDatabase) tableExists(name string) (bool, error) {
+	// kingbase中一般用户可能没权限查information_schema.tables
+	//var exists bool
+	//err := d.provider.db.QueryRow(fmt.Sprintf(`
+	//    SELECT EXISTS (
+	//        SELECT 1
+	//        FROM information_schema.tables
+	//        WHERE table_schema = '%s'
+	//        AND table_name = $1
+	//    )`, d.provider.Schema), name).Scan(&exists)
+	//return exists, err
+	return true, nil
 }
 
 type PostgresTable struct {
-	db     *Database
+	db     *PGDatabase
 	name   string
 	schema sqle.Schema
 }
@@ -144,12 +149,13 @@ func (t *PostgresTable) Collation() sqle.CollationID {
 func (t *PostgresTable) Name() string { return t.name }
 
 func (t *PostgresTable) Schema() sqle.Schema {
+	logkit.Debug("pgtable: Schema()")
 	if t.schema != nil {
 		return t.schema
 	}
 
 	// 查询PostgreSQL获取表结构
-	rows, err := t.db.backend.db.Query(`
+	rows, err := t.db.provider.db.Query(`
         SELECT column_name, data_type 
         FROM information_schema.columns 
         WHERE table_name = $1
@@ -200,11 +206,12 @@ func (t *PostgresTable) Partitions(ctx *sqle.Context) (sqle.PartitionIter, error
 }
 
 func (t *PostgresTable) PartitionRows(ctx *sqle.Context, p sqle.Partition) (sqle.RowIter, error) {
+	logkit.Debug("pgtable: PartitionRows()")
 	// 构建SELECT查询
 	query := fmt.Sprintf("SELECT * FROM %s", t.name)
 
 	// 执行PostgreSQL查询
-	rows, err := t.db.backend.db.Query(query)
+	rows, err := t.db.provider.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -244,6 +251,7 @@ type postgresRowIter struct {
 }
 
 func (i *postgresRowIter) Next(ctx *sqle.Context) (sqle.Row, error) {
+	logkit.Debug("pgtable: Next()")
 	if !i.rows.Next() {
 		return nil, io.EOF
 	}
@@ -285,46 +293,4 @@ func convertPgValueToMySQL(val interface{}, typ sqle.Type) interface{} {
 
 func (i *postgresRowIter) Close(ctx *sqle.Context) error {
 	return i.rows.Close()
-}
-
-func Main() {
-	// 初始化PostgreSQL后端
-	param := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", "", "", "", "", "")
-	pgBackend, err := NewBackend(param)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// 创建引擎
-	//db := memory.NewDatabase("abc")
-	//db.BaseDatabase.EnablePrimaryKeyIndexes()
-	engine := sqls.NewDefault(pgBackend)
-
-	// 配置服务器
-	config := server.Config{
-		Protocol: "tcp",
-		Address:  "0.0.0.0:3306",
-	}
-	//session := memory.NewSession(sqle.NewBaseSession(), pgBackend)
-	//ctx := sqle.NewContext(context.Background(), sqle.WithSession(session))
-	//var pro sqle.DatabaseProvider = pgBackend
-	// 启动服务器
-	s, err := server.NewServer(config, engine, func(ctx context.Context, conn *mysql.Conn, addr string) (sqle.Session, error) {
-		host := ""
-		user := ""
-		mysqlConnectionUser, ok := conn.UserData.(sqle.MysqlConnectionUser)
-		if ok {
-			host = mysqlConnectionUser.Host
-			user = mysqlConnectionUser.User
-		}
-		client := sqle.Client{Address: host, User: user, Capabilities: conn.Capabilities}
-		baseSession := sqle.NewBaseSessionWithClientServer(addr, client, conn.ConnectionID)
-		return memory.NewSession(baseSession, pgBackend), nil
-	}, nil)
-	if err != nil {
-		panic(err)
-	}
-	if err = s.Start(); err != nil {
-		panic(err)
-	}
 }

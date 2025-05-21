@@ -1,0 +1,19 @@
+{
+  "targets": [
+    {
+      "port": 3306,
+      "src": {
+        "db": "xxx"
+      },
+      "dist": {
+        "driver": "kingbase",
+        "db": "xxx",
+        "schema": "xxx",
+        "ip": "",
+        "port": 123,
+        "username": "",
+        "password": ""
+      }
+    }
+  ]
+}
