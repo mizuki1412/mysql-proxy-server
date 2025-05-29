@@ -27,11 +27,5 @@ func openDBConnection(target *TargetDetail) {
 		if err != nil {
 			panic(exception.New("数据库ping失败: " + jsonkit.ToString(target)))
 		}
-		target.Provider = &DBProvider{
-			db:     db,
-			Driver: target.Driver,
-			Db:     target.Db,
-			Schema: target.Schema,
-		}
 	}
 }

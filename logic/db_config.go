@@ -11,14 +11,13 @@ type Target struct {
 }
 
 type TargetDetail struct {
-	Driver   string      `json:"driver"`
-	Db       string      `json:"db"`
-	Schema   string      `json:"schema"`
-	Ip       string      `json:"ip"`
-	Port     int         `json:"port"`
-	Username string      `json:"username"`
-	Password string      `json:"password"`
-	Provider *DBProvider `json:"-"`
+	Driver   string `json:"driver"`
+	Db       string `json:"db"`
+	Schema   string `json:"schema"`
+	Ip       string `json:"ip"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 const (
