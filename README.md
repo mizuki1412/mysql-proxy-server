@@ -1,6 +1,10 @@
 
 # mysql-proxy-server
 
+## usage
+
+./mysql-proxy-server --logger.level=debug --data_path=./data.json
+
 ## todo
 
 - 当前target src中的db没啥用，mysql协议需要指定db；
