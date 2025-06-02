@@ -1,9 +1,10 @@
 {
   "targets": [
     {
-      "port": 3306,
-      "src": {
-        "db": "xxx"
+      "host": {
+        "port": 24000,
+        "username": "root",
+        "password": "123"
       },
       "dist": {
         "driver": "kingbase",

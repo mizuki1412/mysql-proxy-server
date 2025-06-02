@@ -8,40 +8,15 @@ import (
 
 func ClientExample() {
 	// Connect MySQL at 127.0.0.1:3306, with user root, an empty password and database test
-	conn, err := client.Connect("47.96.160.63:24000", "root", "123", "test")
-	// Or to use SSL/TLS connection if MySQL server supports TLS
-	// conn, err := client.Connect("127.0.0.1:3306", "root", "", "test", func(c *Conn) {c.UseSSL(true)})
-	// Or to set your own client-side certificates for identity verification for security
-	// tlsConfig := NewClientTLSConfig(caPem, certPem, keyPem, false, "your-server-name")
-	// conn, err := client.Connect("127.0.0.1:3306", "root", "", "test", func(c *Conn) {c.SetTLSConfig(tlsConfig)})
-	if err != nil {
-		msg := fmt.Sprintf(`
-This example needs a MySQL listening on 127.0.0.1:3006 with user "root" and 
-empty password. Please check the connectivity using mysql client.
----
-Connect to MySQL failed: %v`, err)
-		panic(msg)
-	}
+	conn, err := client.Connect("127.0.0.1:24000", "root", "123", "myspace")
 
 	err = conn.Ping()
 	if err != nil {
 		panic(err)
 	}
 
-	// (re)create the t1 table
-	r, err := conn.Execute(`DROP TABLE IF EXISTS t1`)
-	if err != nil {
-		panic(err)
-	}
-	r.Close()
-	r, err = conn.Execute(`CREATE TABLE t1 (id int PRIMARY KEY, name varchar(255))`)
-	if err != nil {
-		panic(err)
-	}
-	r.Close()
-
 	// Insert
-	r, err = conn.Execute(`INSERT INTO t1(id, name) VALUES(1, "abc"),(2, "def")`)
+	r, err := conn.Execute(`INSERT INTO sys_user(role, username) VALUES(1, ?)`, "aaa1")
 	if err != nil {
 		panic(err)
 	}
@@ -51,23 +26,23 @@ Connect to MySQL failed: %v`, err)
 	fmt.Printf("InsertId: %d, AffectedRows: %d\n", r.InsertId, r.AffectedRows)
 
 	// Select
-	r, err = conn.Execute(`SELECT id, name FROM t1`)
+	r, err = conn.Execute(`SELECT * FROM sys_user where id>?`, 1)
 	if err != nil {
 		panic(err)
 	}
 
 	// Handle resultset
-	v, err := r.GetInt(0, 0)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Value of Row 0, Column 0: %d\n", v)
+	//v, err := r.GetInt(0, 0)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("Value of Row 0, Column 0: %d\n", v)
 
-	v, err = r.GetIntByName(0, "id")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Value of Row 0, Column 'id': %d\n", v)
+	//v, err = r.GetIntByName(0, "id")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("Value of Row 0, Column 'id': %d\n", v)
 
 	// Direct access to fields
 	for rownum, row := range r.Values {
@@ -75,8 +50,8 @@ Connect to MySQL failed: %v`, err)
 		for colnum, val := range row {
 			fmt.Printf("\tColumn number %d\n", colnum)
 
-			ival := val.Value() // interface{}
-			fmt.Printf("\t\tvalue (type: %d): %#v\n", val.Type, ival)
+			//ival := val.Value() // interface{}
+			//fmt.Printf("\t\tvalue (type: %d): %#v\n", val.Type, ival)
 
 			if val.Type == mysql.FieldValueTypeSigned {
 				fval := val.AsInt64()
