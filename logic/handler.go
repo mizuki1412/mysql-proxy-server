@@ -13,8 +13,7 @@ import (
 )
 
 type MyHandler struct {
-	Target       *TargetDetail
-	targetWaitCh chan bool
+	Target *Target
 }
 
 type MyReplicationHandler struct {
@@ -23,19 +22,13 @@ type MyReplicationHandler struct {
 
 // UseDB is called for COM_INIT_DB
 func (h MyHandler) UseDB(dbName string) error {
-	logkit.Info("Received: UseDB", slog.String("name", dbName))
-	// 匹配对应的targetDetail
-	if h.Target == nil {
-		h.Target = ConfigBean.GetTargetDetailBySrc(dbName)
-		h.targetWaitCh <- true
-	}
+	logkit.Debug("Received: UseDB", slog.String("name", dbName))
 	return nil
 }
 
 // HandleQuery is called for COM_QUERY
 func (h MyHandler) HandleQuery(query string) (*mysql.Result, error) {
-	h.wait()
-	logkit.Info("Received: Query", slog.String("sql", query))
+	logkit.Debug("Received: Query", slog.String("sql", query))
 	return h.handleQuery(query, nil, false)
 }
 
@@ -43,15 +36,13 @@ func (h MyHandler) HandleQuery(query string) (*mysql.Result, error) {
 // Note that COM_FIELD_LIST has been deprecated since MySQL 5.7.11
 // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_field_list.html
 func (h MyHandler) HandleFieldList(table string, fieldWildcard string) ([]*mysql.Field, error) {
-	h.wait()
-	logkit.Info("Received: FieldList", slog.String("table", table), slog.String("fieldWildcard", fieldWildcard))
+	logkit.Debug("Received: FieldList", slog.String("table", table), slog.String("fieldWildcard", fieldWildcard))
 	return nil, nil
 }
 
 // HandleStmtPrepare is called for COM_STMT_PREPARE
 func (h MyHandler) HandleStmtPrepare(query string) (int, int, any, error) {
-	h.wait()
-	logkit.Info("Received: StmtPrepare", slog.String("sql", query))
+	logkit.Debug("Received: StmtPrepare", slog.String("sql", query))
 	query = strings.ToLower(query)
 	params := strings.Count(query, "?")
 	return params, 0, nil, nil
@@ -59,51 +50,41 @@ func (h MyHandler) HandleStmtPrepare(query string) (int, int, any, error) {
 
 // HandleStmtExecute is called for COM_STMT_EXECUTE
 func (h MyHandler) HandleStmtExecute(context any, query string, args []any) (*mysql.Result, error) {
-	h.wait()
-	logkit.Info("Received: StmtExecute", slog.String("sql", query), slog.Any("args", args))
+	logkit.Debug("Received: StmtExecute", slog.String("sql", query), slog.Any("args", args))
 	return h.handleQuery(query, args, true)
 }
 
 // HandleStmtClose is called for COM_STMT_CLOSE
 func (h MyHandler) HandleStmtClose(context any) error {
-	h.wait()
-	logkit.Info("Received: StmtClose")
+	logkit.Debug("Received: StmtClose")
 	return nil
 }
 
 // HandleRegisterSlave is called for COM_REGISTER_SLAVE
 func (h MyReplicationHandler) HandleRegisterSlave(data []byte) error {
-	h.wait()
-	logkit.Info("Received: RegisterSlave")
+	logkit.Debug("Received: RegisterSlave")
 	return nil
 }
 
 // HandleBinlogDump is called for COM_BINLOG_DUMP (non-GTID)
 func (h MyReplicationHandler) HandleBinlogDump(pos mysql.Position) (*replication.BinlogStreamer, error) {
-	h.wait()
-	logkit.Info("Received: BinlogDump", slog.String("pos", pos.String()))
+	logkit.Debug("Received: BinlogDump", slog.String("pos", pos.String()))
 	return nil, nil
 }
 
 // HandleBinlogDumpGTID is called for COM_BINLOG_DUMP_GTID
 func (h MyReplicationHandler) HandleBinlogDumpGTID(gtidSet *mysql.MysqlGTIDSet) (*replication.BinlogStreamer, error) {
-	h.wait()
-	logkit.Info("Received: BinlogDumpGTID", slog.String("gtidSet", gtidSet.String()))
+	logkit.Debug("Received: BinlogDumpGTID", slog.String("gtidSet", gtidSet.String()))
 	return nil, nil
 }
 
 // HandleOtherCommand is called for commands not handled elsewhere
 func (h MyHandler) HandleOtherCommand(cmd byte, data []byte) error {
-	h.wait()
-	logkit.Info("Received: OtherCommand", slog.Any("cmd", cmd), slog.String("data", string(data)))
+	logkit.Debug("Received: OtherCommand", slog.Any("cmd", cmd), slog.String("data", string(data)))
 	return mysql.NewError(
 		mysql.ER_UNKNOWN_ERROR,
 		fmt.Sprintf("command %d is not supported now", cmd),
 	)
-}
-
-func (h MyHandler) wait() {
-
 }
 
 func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.Result, error) {
@@ -166,5 +147,15 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 		return res, nil
 	default:
 		return nil, fmt.Errorf("invalid query %s", query)
+	}
+}
+
+func (h MyHandler) ReplacePlaceholder(sql string) string {
+	switch h.Target.Driver {
+	case DriverPostgres, DriverKingbase:
+		// todo
+		return sql
+	default:
+		return sql
 	}
 }

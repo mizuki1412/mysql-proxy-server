@@ -1,12 +1,12 @@
 {
-  "targets": [
+  "pair": [
     {
       "host": {
         "port": 24000,
         "username": "root",
         "password": "123"
       },
-      "dist": {
+      "target": {
         "driver": "kingbase",
         "db": "xxx",
         "schema": "xxx",

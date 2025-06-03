@@ -10,20 +10,23 @@ import (
 )
 
 type DBConfig struct {
-	Targets  []*Target `json:"targets"`
-	Port     int       `json:"port"`
-	Username string    `json:"username"`
-	Password string    `json:"password"`
+	Pair []*Pair `json:"pair"`
+}
+
+type Pair struct {
+	Host   *Host   `json:"host"`
+	Target *Target `json:"target"`
+}
+
+type Host struct {
+	Port     int    `json:"port"` // 监听的端口
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type Target struct {
-	Src  *TargetDetail `json:"src"`
-	Dist *TargetDetail `json:"dist"`
-}
-
-type TargetDetail struct {
 	Driver   string   `json:"driver"`
-	Db       string   `json:"db"`
+	Db       string   `json:"db"` // db name
 	Schema   string   `json:"schema"`
 	Ip       string   `json:"ip"`
 	Port     int      `json:"port"`
@@ -40,22 +43,13 @@ const (
 
 var ConfigBean = &DBConfig{}
 
-func (th DBConfig) GetTargetDetailBySrc(src string) *TargetDetail {
-	for _, e := range th.Targets {
-		if e.Src != nil && e.Src.Db == src {
-			return e.Dist
-		}
-	}
-	return nil
-}
-
 func InitConfigConnection() {
-	for _, e := range ConfigBean.Targets {
-		openDBConnection(e.Dist)
+	for _, e := range ConfigBean.Pair {
+		openDBConnection(e.Target)
 	}
 }
 
-func openDBConnection(target *TargetDetail) {
+func openDBConnection(target *Target) {
 	if target.Driver == DriverKingbase || target.Driver == DriverPostgres {
 		connInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 			target.Ip, target.Port, target.Username, target.Password, target.Db)
