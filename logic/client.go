@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-mysql-org/go-mysql/client"
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/pkg/errors"
 )
 
 func ClientExample() {
@@ -16,18 +17,28 @@ func ClientExample() {
 	}
 
 	// Insert
-	r, err := conn.Execute(`INSERT INTO sys_user(role, username) VALUES(1, ?)`, "aaa1")
-	if err != nil {
-		panic(err)
-	}
-	defer r.Close()
-
-	// Get last insert id and number of affected rows
-	fmt.Printf("InsertId: %d, AffectedRows: %d\n", r.InsertId, r.AffectedRows)
+	//r, err := conn.Execute(`INSERT INTO sys_user(role, username) VALUES(1, ?) returning id`, "test2")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//defer r.Close()
+	//// Get last insert id and number of affected rows
+	//fmt.Printf("InsertId: %d, AffectedRows: %d\n", r.InsertId, r.AffectedRows)
+	//
+	//r, err = conn.Execute(`update sys_user set name=? where username='test1'`, "test222")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//defer r.Close()
+	//// Get last insert id and number of affected rows
+	//fmt.Printf("InsertId: %d, AffectedRows: %d\n", r.InsertId, r.AffectedRows)
 
 	// Select
-	r, err = conn.Execute(`SELECT * FROM sys_user where id>?`, 1)
+	r, err := conn.Execute(`SELECT * FROM sys_user where id>?`, 1)
 	if err != nil {
+		if err, ok := err.(interface{ StackTrace() errors.StackTrace }); ok {
+			fmt.Sprintf("%+v", err.StackTrace())
+		}
 		panic(err)
 	}
 

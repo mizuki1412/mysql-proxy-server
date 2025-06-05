@@ -8,7 +8,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mizuki1412/go-core-kit/v2 v2.1.3
 	github.com/mizuki1412/kingbase-go-driver v1.0.0
-	github.com/spf13/cast v1.7.1
+	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.1
 )
 
@@ -39,6 +39,7 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
+	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.19.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect

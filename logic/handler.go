@@ -7,7 +7,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/mizuki1412/go-core-kit/v2/service/logkit"
 	"github.com/spf13/cast"
-	"log"
 	"log/slog"
 	"strings"
 )
@@ -105,7 +104,7 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 				{"8.0.11"},
 			}, binary)
 		} else {
-			// todo
+			query = h.replacePlaceholder(query)
 			rows, err = h.Target.DBPool.Queryx(query, args...)
 			var ret []any
 			var rets [][]any
@@ -118,7 +117,11 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 					if err != nil {
 						break
 					}
-					rets = append(rets, ret)
+					formated := make([]any, 0, len(ret))
+					for _, col := range ret {
+						formated = append(formated, h.convertGoValueToMysqlValue(col))
+					}
+					rets = append(rets, formated)
 				}
 				r, err = mysql.BuildSimpleResultset(columns, rets, binary)
 			}
@@ -130,32 +133,59 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 		}
 	case "insert":
 		res := mysql.NewResultReserveResultset(0)
-		// todo
-		query = strings.ReplaceAll(query, "?", "$1")
-		log.Println(query)
+		query = h.replacePlaceholder(query)
+		_, err := h.Target.DBPool.Exec(query, args...)
+		if err != nil {
+			return nil, err
+		}
+		//ri, err := r.LastInsertId()
+		//res.InsertId = cast.ToUint64(ri)
+		//logkit.Debug(query, slog.Any("ret-id", ri))
+		return res, nil
+	case "delete", "update", "replace":
+		res := mysql.NewResultReserveResultset(0)
+		query = h.replacePlaceholder(query)
 		r, err := h.Target.DBPool.Exec(query, args...)
 		if err != nil {
 			return nil, err
 		}
-		ri, err := r.LastInsertId()
-		res.InsertId = cast.ToUint64(ri)
-		return res, nil
-	case "delete", "update", "replace":
-		res := mysql.NewResultReserveResultset(0)
-		// todo
-		res.AffectedRows = 1
+		ri, err := r.RowsAffected()
+		res.AffectedRows = uint64(ri)
 		return res, nil
 	default:
 		return nil, fmt.Errorf("invalid query %s", query)
 	}
 }
 
-func (h MyHandler) ReplacePlaceholder(sql string) string {
+func (h MyHandler) replacePlaceholder(sql string) string {
 	switch h.Target.Driver {
 	case DriverPostgres, DriverKingbase:
-		// todo
-		return sql
+		// 替换?为$
+		k := 1
+		sql2 := make([]uint8, 0, len(sql))
+		for i := 0; i < len(sql); i++ {
+			if sql[i] == '?' {
+				sql2 = append(sql2, '$', uint8(k+'0'))
+				k++
+			} else {
+				sql2 = append(sql2, sql[i])
+			}
+		}
+		return string(sql2)
 	default:
 		return sql
+	}
+}
+
+func (h MyHandler) convertGoValueToMysqlValue(val any) any {
+	switch v := val.(type) {
+	case []byte:
+		return string(v)
+	case bool:
+		return cast.ToInt8(v)
+	//case time.Time:
+	//	return v.Format("2006-01-02 15:04:05")
+	default:
+		return val
 	}
 }

@@ -7,7 +7,4 @@
 
 ## todo
 
-- x: config 改变
-- 占位符改变 
-- update等处理
-- insert 测试返回id
+- insert 测试返回id . SELECT LAST_INSERT_ID(); kingbase可能兼容
