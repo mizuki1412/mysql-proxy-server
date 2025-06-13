@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
@@ -8,6 +9,7 @@ import (
 	"github.com/mizuki1412/go-core-kit/v2/service/logkit"
 	"github.com/spf13/cast"
 	"log/slog"
+	"regexp"
 	"strings"
 )
 
@@ -89,19 +91,80 @@ func (h MyHandler) HandleOtherCommand(cmd byte, data []byte) error {
 func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.Result, error) {
 	query = strings.TrimSpace(query)
 	query = strings.ToLower(query)
-	ss := strings.Split(query, " ")
-	switch ss[0] {
-	case "select":
+	// 去掉开头的注释
+	if strings.Index(query, "/*") >= 0 {
+		end := strings.Index(query, "*/")
+		query = query[end+2:]
+	}
+	switch {
+	case strings.Index(query, "select") == 0:
 		var r *mysql.Resultset
 		var rows *sqlx.Rows
 		var err error
-		if strings.Contains(query, "max_allowed_packet") {
-			r, err = mysql.BuildSimpleResultset([]string{"@@max_allowed_packet"}, [][]any{
-				{mysql.MaxPayloadLen},
-			}, binary)
-		} else if strings.Contains(query, "concat(@@version, ' ', @@version_comment)") {
-			r, err = mysql.BuildSimpleResultset([]string{"concat(@@version, ' ', @@version_comment)"}, [][]any{
-				{"8.0.11"},
+		if regexp.MustCompile("select +@@").MatchString(query) {
+			if query[len(query)-1] == ';' {
+				query = query[:len(query)-1]
+			}
+			ps := strings.Split(query, ",")
+			fields := make([]string, 0, 5)
+			values := make([]any, 0, 5)
+			for _, v := range ps {
+				v = strings.TrimSpace(v)
+				i := strings.Index(v, "@@")
+				if i > -1 {
+					v = v[i:]
+					vs := strings.Split(v, " as ")
+					key := strings.TrimSpace(vs[0])
+					var kas string
+					if len(vs) == 1 {
+						kas = key
+					} else {
+						kas = strings.TrimSpace(vs[1])
+					}
+					var val any
+					switch key {
+					case "@@session.auto_increment_increment":
+						val = 1
+					case "@@character_set_client", "@@character_set_connection", "@@character_set_results", "@@character_set_server":
+						val = "utf8mb4"
+					case "@@collation_server", "@@collation_connection":
+						val = "utf8mb4_unicode_ci"
+					case "@@interactive_timeout", "@@wait_timeout":
+						val = 28800
+					case "@@license":
+						val = "GPL"
+					case "@@lower_case_table_names":
+						val = 0
+					case "@@max_allowed_packet":
+						val = 4194304
+					case "@@net_write_timeout":
+						val = 60
+					case "@@performance_schema":
+						val = 1
+					case "@@sql_mode":
+						val = "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"
+					case "@@system_time_zone":
+						val = "CST"
+					case "@@time_zone":
+						val = "SYSTEM"
+					case "@@transaction_isolation", "@@session.transaction_isolation":
+						val = "REPEATABLE-READ"
+					case "@@session.transaction_read_only":
+						val = 0
+					default:
+						val = ""
+					}
+					fields = append(fields, kas)
+					values = append(values, val)
+				} else {
+					logkit.Error("not exist @@: " + v)
+				}
+			}
+			if len(fields) == 0 {
+				err = errors.New("no fields found")
+			}
+			r, err = mysql.BuildSimpleResultset(fields, [][]any{
+				values,
 			}, binary)
 		} else {
 			query = h.replacePlaceholder(query)
@@ -131,7 +194,7 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 		} else {
 			return mysql.NewResult(r), nil
 		}
-	case "insert":
+	case strings.Index(query, "insert") == 0:
 		res := mysql.NewResultReserveResultset(0)
 		query = h.replacePlaceholder(query)
 		_, err := h.Target.DBPool.Exec(query, args...)
@@ -142,7 +205,7 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 		//res.InsertId = cast.ToUint64(ri)
 		//logkit.Debug(query, slog.Any("ret-id", ri))
 		return res, nil
-	case "delete", "update", "replace":
+	case strings.Index(query, "delete") == 0, strings.Index(query, "update") == 0, strings.Index(query, "replace") == 0:
 		res := mysql.NewResultReserveResultset(0)
 		query = h.replacePlaceholder(query)
 		r, err := h.Target.DBPool.Exec(query, args...)
@@ -152,7 +215,11 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 		ri, err := r.RowsAffected()
 		res.AffectedRows = uint64(ri)
 		return res, nil
+	case strings.Index(query, "set ") == 0:
+		res := mysql.NewResultReserveResultset(0)
+		return res, nil
 	default:
+		logkit.Error("invalid query: " + query)
 		return nil, fmt.Errorf("invalid query %s", query)
 	}
 }
