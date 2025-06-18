@@ -15,6 +15,7 @@ import (
 
 type MyHandler struct {
 	Target *Target
+	Title  string
 }
 
 type MyReplicationHandler struct {
@@ -23,13 +24,13 @@ type MyReplicationHandler struct {
 
 // UseDB is called for COM_INIT_DB
 func (h MyHandler) UseDB(dbName string) error {
-	logkit.Debug("Received: UseDB", slog.String("name", dbName))
+	logkit.Debug(h.Title+"UseDB", slog.String("name", dbName))
 	return nil
 }
 
 // HandleQuery is called for COM_QUERY
 func (h MyHandler) HandleQuery(query string) (*mysql.Result, error) {
-	logkit.Debug("Received: Query", slog.String("sql", query))
+	logkit.Debug(h.Title+"Query", slog.String("sql", query))
 	return h.handleQuery(query, nil, false)
 }
 
@@ -37,13 +38,13 @@ func (h MyHandler) HandleQuery(query string) (*mysql.Result, error) {
 // Note that COM_FIELD_LIST has been deprecated since MySQL 5.7.11
 // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_field_list.html
 func (h MyHandler) HandleFieldList(table string, fieldWildcard string) ([]*mysql.Field, error) {
-	logkit.Debug("Received: FieldList", slog.String("table", table), slog.String("fieldWildcard", fieldWildcard))
+	logkit.Debug(h.Title+"FieldList", slog.String("table", table), slog.String("fieldWildcard", fieldWildcard))
 	return nil, nil
 }
 
 // HandleStmtPrepare is called for COM_STMT_PREPARE
 func (h MyHandler) HandleStmtPrepare(query string) (int, int, any, error) {
-	logkit.Debug("Received: StmtPrepare", slog.String("sql", query))
+	logkit.Debug(h.Title+" StmtPrepare", slog.String("sql", query))
 	query = strings.ToLower(query)
 	params := strings.Count(query, "?")
 	return params, 0, nil, nil
@@ -51,37 +52,37 @@ func (h MyHandler) HandleStmtPrepare(query string) (int, int, any, error) {
 
 // HandleStmtExecute is called for COM_STMT_EXECUTE
 func (h MyHandler) HandleStmtExecute(context any, query string, args []any) (*mysql.Result, error) {
-	logkit.Debug("Received: StmtExecute", slog.String("sql", query), slog.Any("args", args))
+	logkit.Debug(h.Title+" StmtExecute", slog.String("sql", query), slog.Any("args", args))
 	return h.handleQuery(query, args, true)
 }
 
 // HandleStmtClose is called for COM_STMT_CLOSE
 func (h MyHandler) HandleStmtClose(context any) error {
-	logkit.Debug("Received: StmtClose")
+	logkit.Debug(h.Title + " StmtClose")
 	return nil
 }
 
 // HandleRegisterSlave is called for COM_REGISTER_SLAVE
 func (h MyReplicationHandler) HandleRegisterSlave(data []byte) error {
-	logkit.Debug("Received: RegisterSlave")
+	logkit.Debug(h.Title + " RegisterSlave")
 	return nil
 }
 
 // HandleBinlogDump is called for COM_BINLOG_DUMP (non-GTID)
 func (h MyReplicationHandler) HandleBinlogDump(pos mysql.Position) (*replication.BinlogStreamer, error) {
-	logkit.Debug("Received: BinlogDump", slog.String("pos", pos.String()))
+	logkit.Debug(h.Title+" BinlogDump", slog.String("pos", pos.String()))
 	return nil, nil
 }
 
 // HandleBinlogDumpGTID is called for COM_BINLOG_DUMP_GTID
 func (h MyReplicationHandler) HandleBinlogDumpGTID(gtidSet *mysql.MysqlGTIDSet) (*replication.BinlogStreamer, error) {
-	logkit.Debug("Received: BinlogDumpGTID", slog.String("gtidSet", gtidSet.String()))
+	logkit.Debug(h.Title+" BinlogDumpGTID", slog.String("gtidSet", gtidSet.String()))
 	return nil, nil
 }
 
 // HandleOtherCommand is called for commands not handled elsewhere
 func (h MyHandler) HandleOtherCommand(cmd byte, data []byte) error {
-	logkit.Debug("Received: OtherCommand", slog.Any("cmd", cmd), slog.String("data", string(data)))
+	logkit.Debug(h.Title+" OtherCommand", slog.Any("cmd", cmd), slog.String("data", string(data)))
 	return mysql.NewError(
 		mysql.ER_UNKNOWN_ERROR,
 		fmt.Sprintf("command %d is not supported now", cmd),
@@ -90,14 +91,15 @@ func (h MyHandler) HandleOtherCommand(cmd byte, data []byte) error {
 
 func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.Result, error) {
 	query = strings.TrimSpace(query)
-	query = strings.ToLower(query)
 	// 去掉开头的注释
 	if strings.Index(query, "/*") >= 0 {
 		end := strings.Index(query, "*/")
 		query = query[end+2:]
 	}
+	query0 := query
+	query = strings.ToLower(query)
 	switch {
-	case strings.Index(query, "select") == 0:
+	case strings.Index(query, "select") == 0, strings.Index(query, "show ") == 0:
 		var r *mysql.Resultset
 		var rows *sqlx.Rows
 		var err error
@@ -157,7 +159,7 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 					fields = append(fields, kas)
 					values = append(values, val)
 				} else {
-					logkit.Error("not exist @@: " + v)
+					logkit.Error(h.Title + "not exist @@: " + v)
 				}
 			}
 			if len(fields) == 0 {
@@ -167,7 +169,7 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 				values,
 			}, binary)
 		} else {
-			query = h.replacePlaceholder(query)
+			query = h.replacePlaceholder(query0)
 			rows, err = h.Target.DBPool.Queryx(query, args...)
 			var ret []any
 			var rets [][]any
@@ -196,7 +198,7 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 		}
 	case strings.Index(query, "insert") == 0:
 		res := mysql.NewResultReserveResultset(0)
-		query = h.replacePlaceholder(query)
+		query = h.replacePlaceholder(query0)
 		_, err := h.Target.DBPool.Exec(query, args...)
 		if err != nil {
 			return nil, err
@@ -205,22 +207,40 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 		//res.InsertId = cast.ToUint64(ri)
 		//logkit.Debug(query, slog.Any("ret-id", ri))
 		return res, nil
-	case strings.Index(query, "delete") == 0, strings.Index(query, "update") == 0, strings.Index(query, "replace") == 0:
+	case strings.Index(query, "delete") == 0,
+		strings.Index(query, "update") == 0,
+		strings.Index(query, "replace") == 0,
+		query == "rollback", query == "commit",
+		query == "begin", query == "start transaction",
+		strings.Index(query, "set autocommit") == 0:
 		res := mysql.NewResultReserveResultset(0)
-		query = h.replacePlaceholder(query)
+		if strings.Index(query, "set autocommit") == 0 {
+			if strings.LastIndex(query, "1") >= 0 {
+				return res, nil
+			} else if strings.LastIndex(query, "0") >= 0 {
+				// todo 暂不支持autocommit修改
+				query0 = "begin"
+			} else {
+				logkit.Error(h.Title + "autocommit error 【" + query + "】")
+				return res, nil
+			}
+		}
+		query = h.replacePlaceholder(query0)
 		r, err := h.Target.DBPool.Exec(query, args...)
 		if err != nil {
+			logkit.Error(h.Title + "query error 【" + query + "】" + err.Error())
 			return nil, err
 		}
-		ri, err := r.RowsAffected()
+		ri, _ := r.RowsAffected()
 		res.AffectedRows = uint64(ri)
 		return res, nil
 	case strings.Index(query, "set ") == 0:
 		res := mysql.NewResultReserveResultset(0)
 		return res, nil
+		// todo create
 	default:
-		logkit.Error("invalid query: " + query)
-		return nil, fmt.Errorf("invalid query %s", query)
+		logkit.Error(h.Title + "invalid query: " + query0)
+		return nil, fmt.Errorf("invalid query %s", query0)
 	}
 }
 

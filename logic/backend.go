@@ -11,9 +11,6 @@ import (
 )
 
 func Main() {
-	// 先根据config初始化双方数据库连接
-	InitConfigConnection()
-
 	for _, e := range ConfigBean.Pair {
 		c2.RecoverGoFuncWrapper(func() {
 			l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", e.Host.Port))
@@ -39,13 +36,14 @@ func Main() {
 
 // 处理一个连接一个客户端
 func handleConn(c net.Conn, config *Pair) {
+	OpenDBConnection(config.Target)
 	p := server.NewInMemoryProvider()
 	p.AddUser(config.Host.Username, config.Host.Password)
 	conn, err := server.NewServer(
 		"8.0.11",
 		mysql.DEFAULT_COLLATION_ID,
 		mysql.AUTH_NATIVE_PASSWORD,
-		nil, nil).NewCustomizedConn(c, p, MyHandler{Target: config.Target})
+		nil, nil).NewCustomizedConn(c, p, MyHandler{Target: config.Target, Title: fmt.Sprintf("【%s-%d】", config.Target.Db, config.Host.Port)})
 	if err != nil {
 		panic(exception.New(err.Error()))
 	}

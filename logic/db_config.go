@@ -43,13 +43,13 @@ const (
 
 var ConfigBean = &DBConfig{}
 
-func InitConfigConnection() {
-	for _, e := range ConfigBean.Pair {
-		openDBConnection(e.Target)
-	}
-}
+//func InitConfigConnection() {
+//	for _, e := range ConfigBean.Pair {
+//		openDBConnection(e.Target)
+//	}
+//}
 
-func openDBConnection(target *Target) {
+func OpenDBConnection(target *Target) {
 	if target.Driver == DriverKingbase || target.Driver == DriverPostgres {
 		connInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 			target.Ip, target.Port, target.Username, target.Password, target.Db)
