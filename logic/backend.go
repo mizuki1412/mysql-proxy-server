@@ -10,6 +10,8 @@ import (
 	"net"
 )
 
+var index = 1
+
 func Main() {
 	for _, e := range ConfigBean.Pair {
 		c2.RecoverGoFuncWrapper(func() {
@@ -37,16 +39,20 @@ func Main() {
 // 处理一个连接一个客户端
 func handleConn(c net.Conn, config *Pair) {
 	OpenDBConnection(config.Target)
+	defer config.Target.DBPool.Close()
 	p := server.NewInMemoryProvider()
 	p.AddUser(config.Host.Username, config.Host.Password)
 	conn, err := server.NewServer(
 		"8.0.11",
 		mysql.DEFAULT_COLLATION_ID,
 		mysql.AUTH_NATIVE_PASSWORD,
-		nil, nil).NewCustomizedConn(c, p, MyHandler{Target: config.Target, Title: fmt.Sprintf("【%s-%d】", config.Target.Db, config.Host.Port)})
+		nil, nil).NewCustomizedConn(c, p, MyHandler{
+		Target: config.Target,
+		Title:  fmt.Sprintf("【%d-%s】【%d-%s】", config.Host.Port, config.Target.Db, index, c.RemoteAddr().(*net.TCPAddr).IP)})
 	if err != nil {
 		panic(exception.New(err.Error()))
 	}
+	index++
 	// as long as the client keeps sending commands, keep handling them
 	for {
 		if err := conn.HandleCommand(); err != nil {
