@@ -44,7 +44,7 @@ func handleConn(c net.Conn, config *Pair) {
 	p.AddUser(config.Host.Username, config.Host.Password)
 	conn, err := server.NewServer(
 		"8.0.11",
-		mysql.DEFAULT_COLLATION_ID,
+		33, // utf8，对php的pdo适配，  mysql.DEFAULT_COLLATION_ID,
 		mysql.AUTH_NATIVE_PASSWORD,
 		nil, nil).NewCustomizedConn(c, p, MyHandler{
 		Target: config.Target,

@@ -128,9 +128,11 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 					case "@@session.auto_increment_increment":
 						val = 1
 					case "@@character_set_client", "@@character_set_connection", "@@character_set_results", "@@character_set_server":
-						val = "utf8mb4"
+						//val = "utf8mb4"
+						val = "utf8"
 					case "@@collation_server", "@@collation_connection":
-						val = "utf8mb4_unicode_ci"
+						//val = "utf8mb4_unicode_ci"
+						val = "utf8_general_ci"
 					case "@@interactive_timeout", "@@wait_timeout":
 						val = 28800
 					case "@@license":
