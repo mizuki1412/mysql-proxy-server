@@ -201,6 +201,7 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 	case strings.Index(query, "insert") == 0:
 		res := mysql.NewResultReserveResultset(0)
 		query = h.replacePlaceholder(query0)
+		logkit.Debug(h.Title+" insert", slog.Any("sql", query))
 		_, err := h.Target.DBPool.Exec(query, args...)
 		if err != nil {
 			return nil, err
@@ -228,6 +229,7 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 			}
 		}
 		query = h.replacePlaceholder(query0)
+		logkit.Debug(h.Title+" update", slog.Any("sql", query))
 		r, err := h.Target.DBPool.Exec(query, args...)
 		if err != nil {
 			logkit.Error(h.Title + "query error 【" + query + "】" + err.Error())
@@ -251,16 +253,16 @@ func (h MyHandler) replacePlaceholder(sql string) string {
 	case DriverPostgres, DriverKingbase:
 		// 替换?为$
 		k := 1
-		sql2 := make([]uint8, 0, len(sql))
+		var builder strings.Builder
 		for i := 0; i < len(sql); i++ {
 			if sql[i] == '?' {
-				sql2 = append(sql2, '$', uint8(k+'0'))
+				builder.WriteString(fmt.Sprintf("$%d", k))
 				k++
 			} else {
-				sql2 = append(sql2, sql[i])
+				builder.WriteByte(sql[i])
 			}
 		}
-		return string(sql2)
+		return builder.String()
 	default:
 		return sql
 	}
