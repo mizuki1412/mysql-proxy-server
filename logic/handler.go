@@ -202,13 +202,15 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 		res := mysql.NewResultReserveResultset(0)
 		query = h.replacePlaceholder(query0)
 		logkit.Debug(h.Title+" insert", slog.Any("sql", query))
-		_, err := h.Target.DBPool.Exec(query, args...)
+		r, err := h.Target.DBPool.Exec(query, args...)
 		if err != nil {
 			return nil, err
 		}
 		//ri, err := r.LastInsertId()
 		//res.InsertId = cast.ToUint64(ri)
 		//logkit.Debug(query, slog.Any("ret-id", ri))
+		ri, _ := r.RowsAffected()
+		res.AffectedRows = uint64(ri)
 		return res, nil
 	case strings.Index(query, "delete") == 0,
 		strings.Index(query, "update") == 0,
