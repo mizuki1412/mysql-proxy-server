@@ -28,7 +28,7 @@ func Main() {
 					continue
 				}
 				c2.RecoverGoFuncWrapper(func() {
-					handleConn(c, e)
+					handleConn(c, e.Host, *e.Target)
 				})
 			}
 		})
@@ -37,18 +37,17 @@ func Main() {
 }
 
 // 处理一个连接一个客户端
-func handleConn(c net.Conn, config *Pair) {
-	OpenDBConnection(config.Target)
-	defer config.Target.DBPool.Close()
+func handleConn(c net.Conn, host *Host, target Target) {
+	title := fmt.Sprintf("【%d-%s】【%d-%s】", host.Port, target.Db, index, c.RemoteAddr().(*net.TCPAddr).IP)
+	target = OpenDBConnection(title, target)
+	defer target.DBPool.Close()
 	p := server.NewInMemoryProvider()
-	p.AddUser(config.Host.Username, config.Host.Password)
+	p.AddUser(host.Username, host.Password)
 	conn, err := server.NewServer(
 		"8.0.11",
 		33, // utf8，对php的pdo适配，  mysql.DEFAULT_COLLATION_ID,
 		mysql.AUTH_NATIVE_PASSWORD,
-		nil, nil).NewCustomizedConn(c, p, MyHandler{
-		Target: config.Target,
-		Title:  fmt.Sprintf("【%d-%s】【%d-%s】", config.Host.Port, config.Target.Db, index, c.RemoteAddr().(*net.TCPAddr).IP)})
+		nil, nil).NewCustomizedConn(c, p, MyHandler{Target: target, Title: title})
 	if err != nil {
 		panic(exception.New(err.Error()))
 	}

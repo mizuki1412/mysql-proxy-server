@@ -14,7 +14,7 @@ import (
 )
 
 type MyHandler struct {
-	Target *Target
+	Target Target
 	Title  string
 }
 
@@ -194,6 +194,7 @@ func (h *MyHandler) handleQuery(query string, args []any, binary bool) (*mysql.R
 			}
 		}
 		if err != nil {
+			logkit.Error(h.Title+" query error: ", slog.Any("msg", err.Error()))
 			return nil, err
 		} else {
 			return mysql.NewResult(r), nil

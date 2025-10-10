@@ -49,19 +49,20 @@ var ConfigBean = &DBConfig{}
 //	}
 //}
 
-func OpenDBConnection(target *Target) {
+func OpenDBConnection(title string, target Target) Target {
 	if target.Driver == DriverKingbase || target.Driver == DriverPostgres {
 		connInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 			target.Ip, target.Port, target.Username, target.Password, target.Db)
 		db, err := sqlx.Open(target.Driver, connInfo)
 		if err != nil {
-			panic(exception.New("数据库连接失败: " + jsonkit.ToString(target)))
+			panic(exception.New(title + " 数据库连接失败: " + jsonkit.ToString(target)))
 		}
 		err = db.Ping()
 		if err != nil {
-			panic(exception.New("数据库ping失败: " + jsonkit.ToString(target)))
+			panic(exception.New(title + " 数据库ping失败: " + jsonkit.ToString(target)))
 		}
 		target.DBPool = db
-		logkit.Info("数据库连接成功", slog.String("db", connInfo))
+		logkit.Info(title+" 数据库连接成功", slog.String("db", connInfo))
 	}
+	return target
 }
