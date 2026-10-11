@@ -46,10 +46,14 @@ func handleConn(c net.Conn, host *Host, target Target) {
 		panic(exception.New(err.Error()))
 	}
 	conn, err := server.NewServer(
-		"8.0.11",
+		mysqlServerVersion,
 		33, // utf8，对php的pdo适配，  mysql.DEFAULT_COLLATION_ID,
 		mysql.AUTH_NATIVE_PASSWORD,
-		nil, nil).NewCustomizedConn(c, authHandler, MyHandler{Target: target, Title: title})
+		nil, nil).NewCustomizedConn(c, authHandler, &MyHandler{
+		Target: target,
+		Title:  title,
+		state:  &sessionState{},
+	})
 	if err != nil {
 		panic(exception.New(err.Error()))
 	}
@@ -57,7 +61,13 @@ func handleConn(c net.Conn, host *Host, target Target) {
 	// as long as the client keeps sending commands, keep handling them
 	for {
 		if err := conn.HandleCommand(); err != nil {
-			panic(exception.New(err.Error()))
+			// 出错时 go-mysql 已关闭底层连接，正常退出（QUIT）不视为异常
+			if conn.Conn == nil {
+				logkit.Debug(title + " client connection closed")
+			} else {
+				logkit.Error(title + " command error: " + err.Error())
+			}
+			return
 		}
 	}
 }

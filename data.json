@@ -8,11 +8,12 @@
       },
       "target": {
         "driver": "kingbase",
-        "db": "xxx",
-        "schema": "xxx",
-        "ip": "",
-        "port": 123,
-        "username": "",
+        "db": "test",
+        "schema": "public",
+        "timezone": "Asia/Shanghai",
+        "ip": "127.0.0.1",
+        "port": 54321,
+        "username": "system",
         "password": ""
       }
     }

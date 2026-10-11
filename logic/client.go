@@ -37,7 +37,7 @@ func ClientExample() {
 	r, err := conn.Execute(`SELECT * FROM sys_user where id>?`, 1)
 	if err != nil {
 		if err, ok := err.(interface{ StackTrace() errors.StackTrace }); ok {
-			fmt.Sprintf("%+v", err.StackTrace())
+			fmt.Printf("%+v\n", err.StackTrace())
 		}
 		panic(err)
 	}
