@@ -3,14 +3,15 @@ package logic
 import (
 	"errors"
 	"fmt"
-	"github.com/go-mysql-org/go-mysql/mysql"
-	"github.com/go-mysql-org/go-mysql/replication"
-	"github.com/jmoiron/sqlx"
-	"github.com/mizuki1412/go-core-kit/v2/service/logkit"
-	"github.com/spf13/cast"
 	"log/slog"
 	"regexp"
 	"strings"
+
+	"github.com/example/go-frame/pkg/service/logkit"
+	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/go-mysql-org/go-mysql/replication"
+	"github.com/jmoiron/sqlx"
+	"github.com/spf13/cast"
 )
 
 type MyHandler struct {

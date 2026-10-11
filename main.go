@@ -1,15 +1,16 @@
 package main
 
 import (
+	"mizuki/project/mysql-proxy-server/logic"
+
+	"github.com/example/go-frame/pkg/class/exception"
+	"github.com/example/go-frame/pkg/cli"
+	"github.com/example/go-frame/pkg/library/filekit"
+	"github.com/example/go-frame/pkg/library/jsonkit"
+	"github.com/example/go-frame/pkg/service/configkit"
 	_ "github.com/lib/pq"
-	"github.com/mizuki1412/go-core-kit/v2/class/exception"
-	"github.com/mizuki1412/go-core-kit/v2/cli"
-	"github.com/mizuki1412/go-core-kit/v2/library/filekit"
-	"github.com/mizuki1412/go-core-kit/v2/library/jsonkit"
-	"github.com/mizuki1412/go-core-kit/v2/service/configkit"
 	_ "github.com/mizuki1412/kingbase-go-driver"
 	"github.com/spf13/cobra"
-	"mizuki/project/mysql-proxy-server/logic"
 )
 
 func main() {

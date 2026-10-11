@@ -2,11 +2,12 @@ package logic
 
 import (
 	"fmt"
-	"github.com/jmoiron/sqlx"
-	"github.com/mizuki1412/go-core-kit/v2/class/exception"
-	"github.com/mizuki1412/go-core-kit/v2/library/jsonkit"
-	"github.com/mizuki1412/go-core-kit/v2/service/logkit"
 	"log/slog"
+
+	"github.com/example/go-frame/pkg/class/exception"
+	"github.com/example/go-frame/pkg/library/jsonkit"
+	"github.com/example/go-frame/pkg/service/logkit"
+	"github.com/jmoiron/sqlx"
 )
 
 type DBConfig struct {

@@ -2,11 +2,11 @@ package logic
 
 import (
 	"fmt"
+	"github.com/example/go-frame/pkg/class/exception"
+	c2 "github.com/example/go-frame/pkg/library/c"
+	"github.com/example/go-frame/pkg/service/logkit"
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/server"
-	"github.com/mizuki1412/go-core-kit/v2/class/exception"
-	c2 "github.com/mizuki1412/go-core-kit/v2/library/c"
-	"github.com/mizuki1412/go-core-kit/v2/service/logkit"
 	"net"
 )
 
@@ -41,13 +41,15 @@ func handleConn(c net.Conn, host *Host, target Target) {
 	title := fmt.Sprintf("【%d-%s】【%d-%s】", host.Port, target.Db, index, c.RemoteAddr().(*net.TCPAddr).IP)
 	target = OpenDBConnection(title, target)
 	defer target.DBPool.Close()
-	p := server.NewInMemoryProvider()
-	p.AddUser(host.Username, host.Password)
+	authHandler := server.NewInMemoryAuthenticationHandler(mysql.AUTH_NATIVE_PASSWORD)
+	if err := authHandler.AddUser(host.Username, host.Password); err != nil {
+		panic(exception.New(err.Error()))
+	}
 	conn, err := server.NewServer(
 		"8.0.11",
 		33, // utf8，对php的pdo适配，  mysql.DEFAULT_COLLATION_ID,
 		mysql.AUTH_NATIVE_PASSWORD,
-		nil, nil).NewCustomizedConn(c, p, MyHandler{Target: target, Title: title})
+		nil, nil).NewCustomizedConn(c, authHandler, MyHandler{Target: target, Title: title})
 	if err != nil {
 		panic(exception.New(err.Error()))
 	}
